@@ -1,0 +1,20 @@
+git init <repo name>  To initialize a local repository
+cd <reponame>  Get into the folder
+git remote add origin <url>  To map the remote repository to local
+git ls-remote To identify the mapped remote repository
+git branch -a  To list all branches
+create a text file
+git add <file name>
+git commit -m "<Comment>"
+git restore <filename>
+git add . To stage multiple files.
+git reset --hard To unstage the file and undo all the changes
+git commit -am "" To commit the modified files without using the git add command
+git checkout <branch name> To navigate to another branch
+git checkout -b <branch name> To create a new branch locally
+git push -u origin <branch name> To push the locally created branch to remote repository
+git pull To get the newly created branch from remote 
+git rm <file name> To remove a file and stage the change
+git log To see the history of commits
+git branch -D <branch name> To delete the branch
+git push origin -d <branch name> To remove from remote
