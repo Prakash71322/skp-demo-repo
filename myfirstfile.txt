@@ -2,4 +2,4 @@ This is for demo
 This is to demo git commit for modified file
 
 
-This is to demo rebase
+This is to demo rebase command
