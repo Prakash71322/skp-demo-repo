@@ -18,3 +18,17 @@ git rm <file name> To remove a file and stage the change
 git log To see the history of commits
 git branch -D <branch name> To delete the branch
 git push origin -d <branch name> To remove from remote
+git diff master  - To see the difference from current branch against master branch
+git diff --name-status master - To see the list of file names that has difference from master branch
+git diff <branch1>..<branch2> - To see the changes between two branches
+git diff --name-status <branch1>..<branch2> - To see the list of changed files between two branches
+git rebase <parent branchname> - To bring the parent branch changes
+git log --pretty=format:"%as %an"
+git log --pretty=format:"%as"
+git log --pretty=format:"%H"
+git log --pretty=format:"%cn"
+git log -5
+git stash save "<name>"  - To save the changes into cache for later usage
+git stash list - To list all unsaved changes stored in cache
+git stash apply stash@{0} - To apply the cache into repository But cache has item stored
+git stash pop stash@{0} - To apply the cache into repository but removes the item
