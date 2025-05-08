@@ -13,4 +13,5 @@ Demo for no conflict
 This is last line
 I think this the last line
 
-For rebase 
+For rebase
+for git fetch-avish 
