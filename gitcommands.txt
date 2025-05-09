@@ -32,3 +32,11 @@ git stash save "<name>"  - To save the changes into cache for later usage
 git stash list - To list all unsaved changes stored in cache
 git stash apply stash@{0} - To apply the cache into repository But cache has item stored
 git stash pop stash@{0} - To apply the cache into repository but removes the item
+git clean -f  - To remove newly created untracked file
+git clean -f -d  - To remove newly created untracked folder
+git tag --list  - To list all the tags created
+git tag <tagname>  - To create a tag in current branch
+git push origin <tagname>  - To push the tag to remote repository
+git revert HEAD~<number of commits to skip>   - To revert the commits. This creates new commit. 
+git revert --no-commit HEAD~<number of commits to skip>  - To revert the commits without a new commit
+git cherry-pick <commit id >   https://www.geeksforgeeks.org/how-to-use-the-cherry-pick-command-in-git/
