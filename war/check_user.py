@@ -2,7 +2,12 @@ import boto3
 from datetime import datetime 
 
 
-_usr_groups: dict = {}
+_usr_groups = []
+
+
+
+class GroupsNotFoundException(Exception):
+    pass
 
 
 def get_boto_client(service_name, region_name="us-east-1"):
@@ -12,16 +17,17 @@ def get_boto_client(service_name, region_name="us-east-1"):
 def check_roles(iam_client):
     try:
         paginator = iam_client.get_paginator('list_roles')
-        total_roles = 0
+        result = {}
+        total_roles_count = 0
         assumable_roles = 0
         roles_with_boundary = 0
-        inactive_roles = 0
-        
+        inactive_roles_count = 0
+        resultant_roles = {}
         for page in paginator.paginate():
             for role in page['Roles']:
-                total_roles += 1
+                total_roles_count += 1
                 role_name = role['RoleName']
-                print(f"Checking role: {role_name}")
+                _t_details = ""
                 assume_role_policy = role.get('AssumeRolePolicyDocument', {})
                 can_be_assumed = bool(assume_role_policy.get('Statement'))
                 
@@ -36,29 +42,43 @@ def check_roles(iam_client):
                 
                 if can_be_assumed:
                     assumable_roles += 1
+                    _t_details = _t_details + "::assumable "
+                else:
+                    _t_details = _t_details + "::not assumable "
                 if has_boundary:
                     roles_with_boundary += 1
+                    _t_details = _t_details + "with permission boundaries "
+                else:
+                    _t_details = _t_details + "without permission boundaries "
                 if _days_inactive and _days_inactive > 90:
-                    inactive_roles += 1
+                    inactive_roles_count += 1
+                    _t_details = _t_details + "and inactive for more than 3 months"
                 #     print(f"\033[31mRole: {role_name}  Assumable: {can_be_assumed} | Permission Boundary: {has_boundary} | Inactive: {_days_inactive} days\033[0m")
-                # else:
+                elif _days_inactive :
+                    _t_details = _t_details + f"and {90 - _days_inactive} days to rotate the credential"
+                else: 
+                    _t_details = _t_details + "and no last activity."
                 #     print(f"Role: {role_name} | Assumable: {can_be_assumed} | Boundary: {has_boundary} | Inactive: Not available")
-        
-        print(f"\nTotal roles: {total_roles}")
-        print(f"Assumable roles: {assumable_roles}")
-        print(f"Roles with permission boundaries: {roles_with_boundary}")
-        print(f"Roles inactive > 90 days: {inactive_roles}")
+                resultant_roles[role_name] = _t_details
+        result["status"] = (f"Total available roles - {total_roles_count}, " + \
+                            f"Assumable roles - {assumable_roles}, " + \
+                            f"Roles with permission boundary - {roles_with_boundary}, " + \
+                            f"::Inactive roles - {inactive_roles_count}", "Green")
+        result["roles"] = resultant_roles
+        return result
     except Exception as e:
         print(f"Error fetching roles: {e}")
+        return None
+
 
 def check_password_policy(iam_client):
     try:
         response = iam_client.get_account_password_policy()
         password_policy = response['PasswordPolicy']
         print(password_policy)
-        print("Password policy is set:")
+        return ("Enforced", "green")
     except iam_client.exceptions.NoSuchEntityException:
-        print("\033[31m" + "No password policy is set for this account." + "\033[0m")
+        return ("Not enforced", "red")
 
 
 def get_user_last_login(iam_client, username):
@@ -89,7 +109,7 @@ def check_admin_permissions(iam_client, username):
                 return True
         
         groups = iam_client.list_groups_for_user(UserName=username)['Groups']
-        _usr_groups[username] = [group['GroupName'] for group in groups]
+        _usr_groups.append(username + f" part of {len(groups)} groups\n")
         for group in groups:
             group_policies = iam_client.list_attached_group_policies(GroupName=group['GroupName'])['AttachedPolicies']
             for policy in group_policies:
@@ -105,35 +125,62 @@ def check_admin_permissions(iam_client, username):
 def get_users(iam_client):
     try:
         paginator = iam_client.get_paginator('list_users')
-        count = 0
+        _count = 0
         _admin_user_count = 0
         _inactive_users = 0
+        _result: dict = {}
+        _users: list = []
+        _color = "Green"
         for page in paginator.paginate():
-            count+= len(page['Users'])
+            _count+= len(page['Users'])
             for user in page['Users']:
                 _user_name = user['UserName']
-                print(f"Checking user: {_user_name}")
+                _users.append("\n" + _user_name)
                 days_ago = get_user_last_login(iam_client, _user_name)
                 if check_admin_permissions(iam_client, _user_name):
                     _admin_user_count+= 1
                     #print("\033[31m" + f"User {_user_name} has admin permissions!" + "\033[0m", end=" ")
                 if days_ago is not None and days_ago > 90:
                     _inactive_users += 1
-                
-                
-        print(f"\nTotal number of users: {count}")
-        print(f"Number of users with last login > 90 days: {_inactive_users}")
-        print(f"Number of users with Administrator privilege: {_admin_user_count}")
+                if _inactive_users > 0 or  _admin_user_count > 0 :
+                    _color = "Yellow"
+                _result["status"] = (f"Total number of users - {_count} " + \
+                                    f"Number of users inactive for more than 90 days - {_inactive_users}" + \
+                                    f"\nNumber of users with Administrator privilege - {_admin_user_count}", _color)
+        _result["users"] = _users
         global _usr_groups
-        for user, groups in _usr_groups:
-            print(f"User: {user} | Groups: {groups}")
+        _result["groups"] = _usr_groups
+        return _result
     except Exception as e:
         print(f"Error fetching users: {e}")
+        return None
+
+
+def get_groups(iam_client):
+    try:
+        paginator = iam_client.get_paginator('list_groups')
+        groups = []
+        for page in paginator.paginate():
+            groups.extend(page['Groups'])
+        
+        print(f"\n--- IAM Groups ---")
+        if len(groups) == 0:
+            raise GroupsNotFoundException("No Groups found exception")
+        else:
+            return {"groups_count":groups}
+    
+    except GroupsNotFoundException as ge:
+        print("\033[31m" + f"No groups available "  + "\033[0m")
+        return None
+    
+    except Exception as e:
+        return None
 
 
 if __name__ == "__main__":
     iam_client = get_boto_client('iam')
     print("Calling users ...")
-    get_users(iam_client)
+    #get_users(iam_client)
+    get_groups(iam_client)
     check_password_policy(iam_client)
-    check_roles(iam_client)
+    #check_roles(iam_client)
